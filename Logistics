@@ -1,0 +1,266 @@
+import React, { useState, useEffect } from 'react';
+import { Truck, MapPin, Calculator, AlertTriangle, CheckCircle, TrendingUp, DollarSign, Settings, Package } from 'lucide-react';
+
+// --- Components แบบสร้างเอง (ไม่ต้องลง Library เพิ่ม) ---
+const Card = ({ children, className = "" }) => (
+  <div className={`bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden ${className}`}>{children}</div>
+);
+const CardHeader = ({ children, className = "" }) => (
+  <div className={`p-4 border-b border-slate-100 bg-slate-50 ${className}`}>{children}</div>
+);
+const CardTitle = ({ children, className = "" }) => (
+  <h3 className={`font-bold text-lg flex items-center gap-2 ${className}`}>{children}</h3>
+);
+const CardContent = ({ children, className = "" }) => (
+  <div className={`p-4 ${className}`}>{children}</div>
+);
+
+const DeliveryPricingCalculator = () => {
+  // --- Presets for Vehicles ---
+  const VEHICLE_TYPES = {
+    pickup: { name: 'รถกระบะ (Pickup)', consumption: 10, capacity: 200, labor: 500, other: 200, maxWeight: 1.5 },
+    truck6: { name: 'รถ 6 ล้อ', consumption: 6, capacity: 1000, labor: 1200, other: 500, maxWeight: 6 },
+    truck10: { name: 'รถ 10 ล้อ', consumption: 4, capacity: 1500, labor: 1500, other: 800, maxWeight: 15 },
+    trailer: { name: 'รถเทรลเลอร์ (18 ล้อ)', consumption: 2.5, capacity: 3400, labor: 2500, other: 1500, maxWeight: 32 }
+  };
+
+  // --- Presets for Products ---
+  const PRODUCT_TYPES = {
+    p350: { name: '350ml (แพ็ค 12)', cost: 15.00, weight: 4.5 },
+    p600: { name: '600ml (แพ็ค 12)', cost: 16.23, weight: 7.5 },
+    p1500: { name: '1500ml (แพ็ค 6)', cost: 19.83, weight: 9.2 },
+  };
+
+  const [selectedVehicle, setSelectedVehicle] = useState('trailer');
+  const [selectedProduct, setSelectedProduct] = useState('p1500');
+
+  // --- ตัวแปรตั้งต้น ---
+  const [distanceOneWay, setDistanceOneWay] = useState(150); // กม. (ขาไป)
+  const [fuelPrice, setFuelPrice] = useState(32); // ราคาน้ำมันดีเซล
+  
+  // State ที่เปลี่ยนตาม Vehicle Preset
+  const [fuelConsumption, setFuelConsumption] = useState(VEHICLE_TYPES.trailer.consumption);
+  const [laborCost, setLaborCost] = useState(VEHICLE_TYPES.trailer.labor);
+  const [otherCost, setOtherCost] = useState(VEHICLE_TYPES.trailer.other);
+  const [loadQty, setLoadQty] = useState(VEHICLE_TYPES.trailer.capacity);
+
+  // State ที่เปลี่ยนตาม Product Preset
+  const [productCost, setProductCost] = useState(PRODUCT_TYPES.p1500.cost); 
+  const [productWeight, setProductWeight] = useState(PRODUCT_TYPES.p1500.weight);
+
+  const [targetProfit, setTargetProfit] = useState(2); // กำไรที่อยากได้ (บาท)
+
+  // --- ผลลัพธ์การคำนวณ ---
+  const [totalDistance, setTotalDistance] = useState(0);
+  const [totalFuelCost, setTotalFuelCost] = useState(0);
+  const [totalTransportCost, setTotalTransportCost] = useState(0);
+  const [transportCostPerPack, setTransportCostPerPack] = useState(0);
+  const [totalCostPerPack, setTotalCostPerPack] = useState(0);
+  const [suggestedPrice, setSuggestedPrice] = useState(0);
+  const [totalLoadWeight, setTotalLoadWeight] = useState(0); // ตัน
+
+  // Update presets when vehicle changes
+  const handleVehicleChange = (type) => {
+    setSelectedVehicle(type);
+    setFuelConsumption(VEHICLE_TYPES[type].consumption);
+    setLaborCost(VEHICLE_TYPES[type].labor);
+    setOtherCost(VEHICLE_TYPES[type].other);
+    setLoadQty(VEHICLE_TYPES[type].capacity);
+  };
+
+  // Update presets when product changes
+  const handleProductChange = (type) => {
+    setSelectedProduct(type);
+    setProductCost(PRODUCT_TYPES[type].cost);
+    setProductWeight(PRODUCT_TYPES[type].weight);
+  };
+
+  useEffect(() => {
+    const dist = distanceOneWay * 2;
+    setTotalDistance(dist);
+
+    const fuel = (dist / fuelConsumption) * fuelPrice;
+    setTotalFuelCost(fuel);
+
+    const transportTotal = fuel + laborCost + otherCost;
+    setTotalTransportCost(transportTotal);
+
+    const transPerPack = loadQty > 0 ? transportTotal / loadQty : 0;
+    setTransportCostPerPack(transPerPack);
+
+    const totalPerPack = productCost + transPerPack;
+    setTotalCostPerPack(totalPerPack);
+
+    setSuggestedPrice(totalPerPack + targetProfit);
+
+    const weight = (loadQty * productWeight) / 1000;
+    setTotalLoadWeight(weight);
+
+  }, [distanceOneWay, fuelPrice, fuelConsumption, laborCost, otherCost, productCost, productWeight, loadQty, targetProfit]);
+
+  const maxWeight = VEHICLE_TYPES[selectedVehicle].maxWeight;
+  const isOverweight = totalLoadWeight > maxWeight;
+
+  return (
+    <div className="max-w-3xl mx-auto p-4 space-y-6 font-sans text-slate-900 bg-slate-50 min-h-screen">
+      
+      {/* Header */}
+      <div className="bg-indigo-900 text-white p-6 rounded-xl shadow-lg">
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <Truck className="w-8 h-8" /> Smart Logistics Calculator
+        </h2>
+        <p className="text-indigo-200 mt-1">ระบบคำนวณราคาขนส่ง - โรงงานน้ำดื่มธิดาดาว</p>
+      </div>
+
+      <Card>
+        <CardContent className="space-y-4">
+        {/* Product Selector */}
+        <div>
+          <label className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+            <Package className="w-4 h-4 text-blue-600"/> เลือกขนาดน้ำดื่ม:
+          </label>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {Object.entries(PRODUCT_TYPES).map(([key, data]) => (
+              <button
+                key={key}
+                onClick={() => handleProductChange(key)}
+                className={`px-4 py-2 rounded-lg text-sm font-bold border transition-colors flex-1 whitespace-nowrap
+                  ${selectedProduct === key 
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+              >
+                {data.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Vehicle Selector */}
+        <div>
+          <label className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+            <Truck className="w-4 h-4 text-indigo-600"/> เลือกประเภทรถ:
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(VEHICLE_TYPES).map(([key, data]) => (
+              <button
+                key={key}
+                onClick={() => handleVehicleChange(key)}
+                className={`px-3 py-2 rounded-lg text-sm font-bold border transition-colors flex items-center gap-2
+                  ${selectedVehicle === key 
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' 
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+              >
+                {data.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        </CardContent>
+      </Card>
+
+      {/* Input Section */}
+      <Card>
+        <CardHeader>
+           <CardTitle className="text-slate-700">
+             <MapPin className="w-5 h-5 text-indigo-600" /> ข้อมูลขนส่ง
+           </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+             <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">ระยะทางขาไป (กม.)</label>
+                <input type="number" value={distanceOneWay} onChange={(e) => setDistanceOneWay(Number(e.target.value))} className="w-full p-3 border border-slate-300 rounded-lg font-bold text-xl text-indigo-900 focus:ring-2 focus:ring-indigo-500 outline-none" />
+             </div>
+             <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">จำนวนบรรทุก (แพ็ค)</label>
+                <input type="number" value={loadQty} onChange={(e) => setLoadQty(Number(e.target.value))} className="w-full p-3 border border-slate-300 rounded-lg font-bold text-xl focus:ring-2 focus:ring-indigo-500 outline-none" />
+                <div className={`text-xs mt-2 p-3 rounded-lg flex items-start gap-2 ${isOverweight ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+                   {isOverweight ? <AlertTriangle className="w-5 h-5 shrink-0" /> : <CheckCircle className="w-5 h-5 shrink-0" />}
+                   <div>
+                     <div className="font-bold">น้ำหนักรวม: {totalLoadWeight.toFixed(2)} ตัน</div>
+                     {isOverweight && <div>เกินพิกัดรถ! (Max: {maxWeight} ตัน)</div>}
+                   </div>
+                </div>
+             </div>
+          </div>
+
+          <div className="space-y-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
+             <div className="flex items-center gap-2 mb-2 border-b pb-2">
+               <Settings className="w-4 h-4 text-slate-500" /> <span className="text-sm font-bold text-slate-600">ตั้งค่าตัวแปร</span>
+             </div>
+             <div className="grid grid-cols-2 gap-3">
+               <div>
+                 <label className="block text-xs text-slate-500 mb-1">กินน้ำมัน (กม./ลิตร)</label>
+                 <input type="number" value={fuelConsumption} onChange={(e) => setFuelConsumption(Number(e.target.value))} className="w-full p-2 border rounded bg-white" />
+               </div>
+               <div>
+                 <label className="block text-xs text-slate-500 mb-1">ราคาน้ำมัน</label>
+                 <input type="number" value={fuelPrice} onChange={(e) => setFuelPrice(Number(e.target.value))} className="w-full p-2 border rounded bg-white" />
+               </div>
+               <div>
+                 <label className="block text-xs text-slate-500 mb-1">ค่าแรง</label>
+                 <input type="number" value={laborCost} onChange={(e) => setLaborCost(Number(e.target.value))} className="w-full p-2 border rounded bg-white" />
+               </div>
+               <div>
+                 <label className="block text-xs text-slate-500 mb-1">ค่าอื่นๆ (ทางด่วน)</label>
+                 <input type="number" value={otherCost} onChange={(e) => setOtherCost(Number(e.target.value))} className="w-full p-2 border rounded bg-white" />
+               </div>
+             </div>
+             <div className="pt-2">
+                <label className="block text-xs text-slate-500 mb-1">ต้นทุนผลิต ({PRODUCT_TYPES[selectedProduct].name})</label>
+                <input type="number" value={productCost} onChange={(e) => setProductCost(Number(e.target.value))} className="w-full p-2 border rounded bg-yellow-50 text-yellow-800 font-medium" />
+             </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between bg-blue-50 p-4 rounded-lg border border-blue-100">
+           <label className="font-bold text-slate-700">ต้องการกำไร (บาท/แพ็ค)</label>
+           <div className="flex items-center gap-2">
+             <input type="number" value={targetProfit} onChange={(e) => setTargetProfit(Number(e.target.value))} className="w-24 p-2 border border-blue-200 rounded text-center font-bold text-green-600 text-lg" />
+           </div>
+        </div>
+        </CardContent>
+      </Card>
+
+      {/* Results */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="bg-white border-slate-200">
+           <CardContent className="flex flex-col justify-center h-full">
+             <div className="text-sm text-slate-500 mb-1">ค่าขนส่งเฉลี่ยต่อแพ็ค</div>
+             <div className="text-4xl font-bold text-indigo-600">{transportCostPerPack.toFixed(2)} บาท</div>
+             <div className="text-xs text-slate-400 mt-2">
+               รวมค่าน้ำมัน {totalFuelCost.toFixed(0)} บ. + ค่าแรง/อื่นๆ {(laborCost+otherCost).toFixed(0)} บ.
+             </div>
+           </CardContent>
+        </Card>
+
+        <Card className={`${isOverweight ? 'bg-red-600 text-white border-red-700' : 'bg-green-600 text-white border-green-700'} relative overflow-hidden`}>
+           <CardContent className="relative z-10">
+             <div className="text-white/80 text-sm mb-1">ราคาเสนอขายแนะนำ (ต่อแพ็ค)</div>
+             <div className="text-5xl font-bold">{suggestedPrice.toFixed(2)} บาท</div>
+             
+             {isOverweight ? (
+               <div className="mt-4 bg-white/20 p-2 rounded-lg text-sm font-bold flex items-center gap-2">
+                 <AlertTriangle className="w-5 h-5"/> ลดจำนวนด่วน! น้ำหนักเกิน
+               </div>
+             ) : (
+               <>
+                <div className="text-sm mt-4 text-white/90 flex justify-between border-t border-white/20 pt-2">
+                    <span>ทุนรวม: {totalCostPerPack.toFixed(2)} บ.</span>
+                    <span>กำไร: {(suggestedPrice - totalCostPerPack).toFixed(2)} บ.</span>
+                </div>
+                <div className="mt-2 text-xs bg-black/20 p-2 rounded inline-block">
+                  กำไรสุทธิรอบนี้: <b>{((suggestedPrice - totalCostPerPack) * loadQty).toLocaleString()} บาท</b>
+                </div>
+               </>
+             )}
+           </CardContent>
+           <DollarSign className="absolute bottom-[-20px] right-[-20px] w-32 h-32 text-white/10" />
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default DeliveryPricingCalculator;
